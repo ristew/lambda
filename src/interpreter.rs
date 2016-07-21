@@ -2,8 +2,6 @@ use parser::*;
 use std::collections::BTreeMap;
 use std::fmt;
 
-pub type Environment = BTreeMap<String, ASTNode>;
-
 #[derive(Debug, Clone)]
 pub enum Atom {
     Num(isize),
@@ -11,6 +9,8 @@ pub enum Atom {
     // lambda takes a closure over its environment
     Lambda(String, ASTNode, Environment)
 }
+
+pub type Environment = BTreeMap<String, Atom>;
 
 impl fmt::Display for Atom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -46,7 +46,7 @@ impl Program {
                     Err(_) => {
                         if self.env.contains_key(&val) {
                             let binding = self.env.get(&val).unwrap().clone();
-                            self.interpret_node(binding.clone())
+                            binding
                         } else {
                             Atom::Sym(val)
                         }
@@ -98,18 +98,43 @@ impl Program {
                             Atom::Num(0)
                         }
                     },
+                    BinaryOp::Lt => {
+                        if self.node_num(*lhs) < self.node_num(*rhs) {
+                            Atom::Num(1)
+                        } else {
+                            Atom::Num(0)
+                        }
+                    },
+                    BinaryOp::Gt => {
+                        if self.node_num(*lhs) > self.node_num(*rhs) {
+                            Atom::Num(1)
+                        } else {
+                            Atom::Num(0)
+                        }
+                    },
                     BinaryOp::Def => {
                         let sym = self.node_sym(*lhs);
-                        self.env.insert(sym.clone(), *rhs.clone());
-                        self.interpret_node(*rhs)
+                        let expanded = self.interpret_node(*rhs.clone());
+                        self.env.insert(sym.clone(), expanded);
+                        //self.interpret_node(*rhs)
+                        Atom::Sym(sym)
+                    },
+                    BinaryOp::When => {
+                        if self.node_num(*lhs) != 0 {
+                            self.interpret_node(*rhs)
+                        } else {
+                            Atom::Num(0)
+                        }
                     },
                     BinaryOp::Fun => Atom::Lambda(self.node_sym(*lhs),
                                                   *rhs, self.env.clone()),
                     BinaryOp::Apply => {
                         // lhs evaluates to a lambda, rhs is an arg
                         match self.interpret_node(*lhs.clone()) {
-                            Atom::Lambda(arg, lam, env) =>
-                                self.apply_lambda(lam, (arg, *rhs), env.clone()),
+                            Atom::Lambda(arg, lam, env) => {
+                                let expanded = self.interpret_node(*rhs);
+                                self.apply_lambda(lam, (arg, expanded), env.clone())
+                            }
                             n => n
                         }
                     }
@@ -119,7 +144,7 @@ impl Program {
         }
     }
 
-    fn apply_lambda(&mut self, node: ASTNode, arg: (String, ASTNode),
+    fn apply_lambda(&mut self, node: ASTNode, arg: (String, Atom),
                     env: Environment) -> Atom {
         let oldenv = self.env.clone();
         self.env = env;

@@ -19,7 +19,10 @@ pub enum BinaryOp {
     Def,
     Fun,
     Eq,
+    Lt,
+    Gt,
     Apply,
+    When,
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +139,15 @@ impl Parser {
         } else if self.accept(Token::Equals) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Eq, Box::new(lhs), Box::new(self.expr().unwrap())))
+        } else if self.accept(Token::Arrow) {
+            Some(ASTNode::BinaryOperation(
+                BinaryOp::When, Box::new(lhs), Box::new(self.expr().unwrap())))
+        } else if self.accept(Token::LessThan) {
+            Some(ASTNode::BinaryOperation(
+                BinaryOp::Lt, Box::new(lhs), Box::new(self.expr().unwrap())))
+        } else if self.accept(Token::GreaterThan) {
+            Some(ASTNode::BinaryOperation(
+                BinaryOp::Gt, Box::new(lhs), Box::new(self.expr().unwrap())))
         } else {
             Some(lhs)
         }

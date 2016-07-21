@@ -6,17 +6,20 @@ pub enum Token {
     Equals,
     OpenParen,
     CloseParen,
+    LessThan,
+    GreaterThan,
     Plus,
     Minus,
     Star,
     Slash,
     Newline,
+    Arrow,
     Symbol(String),
 }
 
 // we use these
 fn reserved_chars() -> Vec<char> {
-    vec!('\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
+    vec!('<', '>', '\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
 }
     
 
@@ -58,10 +61,21 @@ impl Lexer {
                     }
                 }
             },
+            Some('-') => {
+                match self.get_next_char() {
+                    // -> 
+                    Some('>') => Some(Token::Arrow),
+                    _ => {
+                        self.position -= 1;
+                        Some(Token::Minus)
+                    }
+                }
+            },
             Some('(') => Some(Token::OpenParen),
             Some(')') => Some(Token::CloseParen),
+            Some('<') => Some(Token::LessThan),
+            Some('>') => Some(Token::GreaterThan),
             Some('+') => Some(Token::Plus),
-            Some('-') => Some(Token::Minus),
             Some('*') => Some(Token::Star),
             Some('/') => Some(Token::Slash),
             Some('=') => Some(Token::Equals),
