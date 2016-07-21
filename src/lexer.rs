@@ -6,6 +6,8 @@ pub enum Token {
     Equals,
     OpenParen,
     CloseParen,
+    OpenList,
+    CloseList,
     LessThan,
     GreaterThan,
     Plus,
@@ -15,11 +17,12 @@ pub enum Token {
     Newline,
     Arrow,
     Symbol(String),
+    Str(String),
 }
 
 // we use these
 fn reserved_chars() -> Vec<char> {
-    vec!('<', '>', '\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
+    vec!('[', ']', '<', '>', '\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
 }
     
 
@@ -71,8 +74,20 @@ impl Lexer {
                     }
                 }
             },
+            Some('"') => {
+                let mut string = String::new();
+                while let Some(c) = self.get_next_char() {
+                    if c == '"' {
+                        break;
+                    }
+                    string.push(c);
+                }
+                Some(Token::Str(string))
+            },
             Some('(') => Some(Token::OpenParen),
             Some(')') => Some(Token::CloseParen),
+            Some('[') => Some(Token::OpenList),
+            Some(']') => Some(Token::CloseList),
             Some('<') => Some(Token::LessThan),
             Some('>') => Some(Token::GreaterThan),
             Some('+') => Some(Token::Plus),

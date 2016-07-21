@@ -26,8 +26,15 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone)]
+pub enum ValueType {
+    String,
+    Symbol,
+}
+
+#[derive(Debug, Clone)]
 pub enum ASTNode {
-    Value(String),
+    Value(String, ValueType),
+    List(Vec<ASTNode>),
     BinaryOperation(BinaryOp, Box<ASTNode>, Box<ASTNode>),
 }
 
@@ -55,6 +62,12 @@ impl Parser {
                     _ => false
                 }
             },
+            Token::Str(_) => {
+                match self.tok {
+                    Some(Token::Str(_)) => true,
+                    _ => false
+                }
+            },
             _ => Some(t.clone()) == self.tok
         } {
             self.nextsym();
@@ -75,21 +88,28 @@ impl Parser {
     // the most basic unit - a number, symbol, lambda, or paren expr
     fn factor(&mut self) -> Option<ASTNode> {
         if self.accept(Token::Lambda) {
-            let arg = match self.tok.clone() {
-                Some(Token::Symbol(s)) => s,
-                _ => "".to_string(),
-            };
-            self.expect(Token::Symbol("any".to_string()));
+            let mut args = Vec::new();
+            while let Some(Token::Symbol(arg)) = self.tok.clone() {
+                args.push(ASTNode::Value(arg.clone(), ValueType::Symbol));
+                self.nextsym();
+            }
             self.expect(Token::Seperator);
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Fun,
-                Box::new(ASTNode::Value(arg.clone())),
+                Box::new(ASTNode::List(args)),
                 Box::new(self.expr().unwrap())))
         }
         else if self.accept(Token::Symbol("any".to_string())) {
             let t = self.last.clone();
             match t {
-                Some(Token::Symbol(s)) => Some(ASTNode::Value(s)),
+                Some(Token::Symbol(s)) => Some(ASTNode::Value(s, ValueType::Symbol)),
+                _ => None
+            }
+        }
+        else if self.accept(Token::Str("any".to_string())) {
+            let t = self.last.clone();
+            match t {
+                Some(Token::Str(s)) => Some(ASTNode::Value(s, ValueType::String)),
                 _ => None
             }
         }
@@ -97,6 +117,13 @@ impl Parser {
             let e = self.expr();
             self.expect(Token::CloseParen);
             e
+        } else if self.accept(Token::OpenList) {
+            let mut list = Vec::new();
+            while self.tok.clone() != Some(Token::CloseList) {
+                list.push(self.expr().unwrap());
+            }
+            self.nextsym();
+            Some(ASTNode::List(list.clone()))
         } else {
             panic!("not a factor: {:?}", self.tok.clone());
         }
