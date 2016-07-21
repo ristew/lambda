@@ -1,9 +1,8 @@
 
-__    
-\ \   
- \ \  
- /  \ 
-/_/\_\ AMDA
+λAMBDA
+    a terse, minimal, functional programming language
 
-a terse, minimal, functional programming language
-    
+sq := \x:x*x
+	? λ x
+sq:16
+	? 256    

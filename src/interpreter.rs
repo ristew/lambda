@@ -101,7 +101,6 @@ impl Program {
                     BinaryOp::Def => {
                         let sym = self.node_sym(*lhs);
                         self.env.insert(sym.clone(), *rhs.clone());
-                        println!("env: {:?}", self.env.clone());
                         self.interpret_node(*rhs)
                     },
                     BinaryOp::Fun => Atom::Lambda(self.node_sym(*lhs),
