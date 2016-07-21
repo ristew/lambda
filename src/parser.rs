@@ -151,13 +151,22 @@ impl Parser {
             self.nextsym();
         }
         let lhs = self.term().unwrap();
-        if self.accept(Token::Plus) {
-            Some(ASTNode::BinaryOperation(
-                BinaryOp::Add, Box::new(lhs), Box::new(self.expr().unwrap())))
-        } else if self.accept(Token::Minus) {
-            Some(ASTNode::BinaryOperation(
-                BinaryOp::Sub, Box::new(lhs), Box::new(self.expr().unwrap())))
-        } else if self.accept(Token::Assign) {
+        // recursive descent parsers have problems with right associativity
+        if self.tok == Some(Token::Plus) || self.tok == Some(Token::Minus) {
+            let mut astbase: Option<ASTNode> = Some(lhs);
+            while self.tok == Some(Token::Plus) || self.tok == Some(Token::Minus) {
+                let baseas = astbase.clone();
+                if self.accept(Token::Plus) {
+                    astbase = Some(ASTNode::BinaryOperation(
+                        BinaryOp::Add, Box::new(baseas.unwrap()), Box::new(self.term().unwrap())));
+                } else if self.accept(Token::Minus) {
+                    astbase = Some(ASTNode::BinaryOperation(
+                        BinaryOp::Sub, Box::new(baseas.unwrap()), Box::new(self.term().unwrap())));
+                }
+            }
+            return astbase;
+        }
+        if self.accept(Token::Assign) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Def, Box::new(lhs), Box::new(self.expr().unwrap())))
         } else if self.accept(Token::Seperator) {
@@ -182,7 +191,6 @@ impl Parser {
 
     pub fn statement(&mut self) -> Option<ASTNode> {
         // lexer gives none for first token
-        self.nextsym();
         if self.tok == None {
             None
         } else {
@@ -192,6 +200,7 @@ impl Parser {
 
     pub fn parse(&mut self) {
         loop {
+            self.nextsym();
             let st = self.statement();
             if st.is_some() {
                 self.ast.push(st.unwrap());

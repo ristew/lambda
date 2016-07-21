@@ -68,6 +68,7 @@ impl Lexer {
                 match self.get_next_char() {
                     // -> 
                     Some('>') => Some(Token::Arrow),
+                    Some(' ') => Some(Token::Minus),
                     _ => {
                         self.position -= 1;
                         Some(Token::Minus)
