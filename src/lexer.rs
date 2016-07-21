@@ -14,6 +14,7 @@ pub enum Token {
     Symbol(String),
 }
 
+// we use these
 fn reserved_chars() -> Vec<char> {
     vec!('\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
 }
@@ -44,10 +45,12 @@ impl Lexer {
 
     pub fn get_next_symbol(&mut self) -> Option<Token> {
         match self.get_next_char() {
+            // diregard multiple spaces
             Some(' ') => self.get_next_symbol(),
             Some('\\') => Some(Token::Lambda),
             Some(':') => {
                 match self.get_next_char() {
+                    // :=
                     Some('=') => Some(Token::Assign),
                     _ => {
                         self.position -= 1;

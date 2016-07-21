@@ -1,5 +1,8 @@
 use lexer::*;
 
+/*
+ * a recursive descent parser
+ */
 pub struct Parser {
     tok: Option<Token>,
     last: Option<Token>,
@@ -22,7 +25,6 @@ pub enum BinaryOp {
 #[derive(Debug, Clone)]
 pub enum ASTNode {
     Value(String),
-//    List(Vec<ASTNode>),
     BinaryOperation(BinaryOp, Box<ASTNode>, Box<ASTNode>),
 }
 
@@ -63,11 +65,11 @@ impl Parser {
         if  self.accept(t.clone()) {
             true
         } else {
-            println!("unexpected symbol: got {:?}, expected {:?}", self.tok.clone(), t);
-            false
+            panic!("unexpected symbol: got {:?}, expected {:?}", self.tok.clone(), t);
         }
     }
 
+    // the most basic unit - a number, symbol, lambda, or paren expr
     fn factor(&mut self) -> Option<ASTNode> {
         if self.accept(Token::Lambda) {
             let arg = match self.tok.clone() {
@@ -97,6 +99,7 @@ impl Parser {
         }
     }
 
+    // *, /
     fn term(&mut self) -> Option<ASTNode> {
         let lhs = self.factor();
         if self.tok == Some(Token::Star) || self.tok == Some(Token::Slash) {
@@ -112,6 +115,7 @@ impl Parser {
         }
     }
 
+    // +, -, :=, :, =
     fn expr(&mut self) -> Option<ASTNode> {
         if self.tok == Some(Token::Plus) || self.tok == Some(Token::Minus) {
             self.nextsym();
@@ -138,6 +142,7 @@ impl Parser {
     }
 
     pub fn statement(&mut self) -> Option<ASTNode> {
+        // lexer gives none for first token
         self.nextsym();
         if self.tok == None {
             None
