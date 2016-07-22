@@ -8,6 +8,8 @@ pub enum Token {
     CloseParen,
     OpenList,
     CloseList,
+    OpenBlock,
+    CloseBlock,
     LessThan,
     GreaterThan,
     Plus,
@@ -22,7 +24,7 @@ pub enum Token {
 
 // we use these
 fn reserved_chars() -> Vec<char> {
-    vec!('[', ']', '<', '>', '\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
+    vec!('{', '}', '[', ']', '<', '>', '\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
 }
     
 
@@ -101,6 +103,8 @@ impl Lexer {
             Some(')') => Some(Token::CloseParen),
             Some('[') => Some(Token::OpenList),
             Some(']') => Some(Token::CloseList),
+            Some('{') => Some(Token::OpenBlock),
+            Some('}') => Some(Token::CloseBlock),
             Some('<') => Some(Token::LessThan),
             Some('>') => Some(Token::GreaterThan),
             Some('+') => Some(Token::Plus),

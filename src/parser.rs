@@ -27,6 +27,11 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone)]
+pub enum TernaryOp {
+    IfElse
+}
+
+#[derive(Debug, Clone)]
 pub enum ValueType {
     String,
     Symbol,
@@ -36,7 +41,9 @@ pub enum ValueType {
 pub enum ASTNode {
     Value(String, ValueType),
     List(Vec<ASTNode>),
+    Block(Vec<ASTNode>),
     BinaryOperation(BinaryOp, Box<ASTNode>, Box<ASTNode>),
+    TernaryOperation(TernaryOp, Box<ASTNode>, Box<ASTNode>, Box<ASTNode>),
 }
 
 impl Parser {
@@ -125,6 +132,13 @@ impl Parser {
             }
             self.nextsym();
             Some(ASTNode::List(list.clone()))
+        } else if self.accept(Token::OpenBlock) {
+            let mut list = Vec::new();
+            while self.tok.clone() != Some(Token::CloseBlock) {
+                list.push(self.expr().unwrap());
+            }
+            self.nextsym();
+            Some(ASTNode::Block(list.clone()))
         } else {
             panic!("not a factor: {:?}", self.tok.clone());
         }
@@ -177,8 +191,8 @@ impl Parser {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Eq, Box::new(lhs), Box::new(self.expr().unwrap())))
         } else if self.accept(Token::Arrow) {
-            Some(ASTNode::BinaryOperation(
-                BinaryOp::When, Box::new(lhs), Box::new(self.expr().unwrap())))
+            Some(ASTNode::TernaryOperation(
+                TernaryOp::IfElse, Box::new(lhs), Box::new(self.expr().unwrap()), Box::new(self.expr().unwrap())))
         } else if self.accept(Token::LessThan) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Lt, Box::new(lhs), Box::new(self.expr().unwrap())))

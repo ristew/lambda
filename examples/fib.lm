@@ -1,7 +1,3 @@
-
-λAMBDA
-    a terse, minimal, functional programming language
-
 fibn := \n:
 	(n > 2) ->
 		(n < 25) ->
@@ -19,3 +15,7 @@ fastfibn := \n:{
 	}
 	addfib:_
 }		
+
+print:fibn:10
+print:fibn:40
+print:fastfibn:40
