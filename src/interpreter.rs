@@ -10,13 +10,27 @@ pub enum Atom {
     List(Vec<Atom>),
     Builtin(String, fn(Atom) -> Atom),
     // lambda takes a closure over its environment
-    Lambda(Box<Atom>, ASTNode, Environment)
+    Lambda(Box<Atom>, ASTNode)
 }
 
 impl Atom {
     fn string(&self) -> Option<String> {
         match self.clone() {
             Atom::Sym(s) => Some(s),
+            _ => None
+        }
+    }
+    fn node_val(&self) -> Option<ASTNode> {
+        match self.clone() {
+            Atom::Sym(s) => Some(ASTNode::Value(s, ValueType::Symbol)),
+            Atom::Num(n) => Some(ASTNode::Value(format!("{}", n), ValueType::Symbol)),
+            Atom::List(l) => {
+                let mut lnew = Vec::new();
+                for i in l {
+                    lnew.push(i.node_val().unwrap());
+                }
+                Some(ASTNode::List(lnew))
+            },
             _ => None
         }
     }
@@ -32,7 +46,7 @@ impl fmt::Display for Atom {
             Atom::Num(i) => write!(f, "{}", i),
             Atom::Sym(s) => write!(f, "{}", s),
             // thanks for otb support
-            Atom::Lambda(_, _, _) => write!(f, "λ"),
+            Atom::Lambda(_, _) => write!(f, "λ"),
             Atom::List(l) => {
                 write!(f, "[").unwrap();
                 for i in l {
@@ -59,6 +73,8 @@ impl Program {
         p.add_builtin("fmt", Builtin::fmt);
         p.add_builtin("debug", Builtin::debug);
         p.add_builtin("cons", Builtin::cons);
+        p.add_builtin("cdr", Builtin::cdr);
+        p.add_builtin("car", Builtin::car);
         p
     }
 
@@ -164,11 +180,11 @@ impl Program {
     }
 
     fn div(&mut self, lhs: ASTNode, rhs: ASTNode) -> Atom {
-        match self.interpret_node(lhs) {
+        match self.interpret_node(lhs.clone()) {
             Atom::List(l) => {
                 let idx = self.node_num(rhs);
                 let udx = if idx < 0 {
-                    l.len() + idx as usize
+                    l.len() - (-idx as usize)
                 } else {
                     idx as usize
                 };
@@ -180,7 +196,7 @@ impl Program {
                 retstr.push(s.chars().nth(self.node_num(rhs) as usize).unwrap());
                 Atom::Sym(retstr)
             },
-            _ => panic!("bad div")
+            _ => panic!("bad div {:?}", lhs)
         }
     }
 
@@ -225,22 +241,14 @@ impl Program {
                             Atom::Nil
                         }
                     },
-                    BinaryOp::When => {
-                        let inter = self.interpret_node(*lhs.clone());
-                        if self.node_truth(inter) {
-                            self.interpret_node(*rhs)
-                        } else {
-                            Atom::Nil
-                        }
-                    },
                     BinaryOp::Fun => Atom::Lambda(Box::new(self.literal_list_node(*lhs)),
-                                                  *rhs, self.env.clone()),
+                                                  *rhs),
                     BinaryOp::Apply => {
                         // lhs evaluates to a lambda, rhs is an arg
                         match self.interpret_node(*lhs.clone()) {
-                            Atom::Lambda(args, lam, env) => {
+                            Atom::Lambda(args, lam) => {
                                 let expanded = self.interpret_node(*rhs);
-                                self.apply_lambda(lam, *args, expanded, env)
+                                self.apply_lambda(lam, *args, expanded)
                             }
                             Atom::Builtin(_, fun) => {
                                 fun(self.interpret_node(*rhs))
@@ -254,18 +262,55 @@ impl Program {
         }
     }
 
-    fn apply_lambda(&mut self, node: ASTNode, argnames: Atom, args: Atom,
-                    env: Environment) -> Atom {
+    fn replace(node: ASTNode, sym: String, val: Atom) -> ASTNode {
+        match node.clone() {
+            ASTNode::Value(s, ValueType::Symbol) => {
+                if s == sym {
+                    //println!("replacing {} with {:?}", s, val.clone());
+                    ASTNode::Literal(Box::new(val))
+                } else {
+                    node.clone()
+                }
+            },
+
+            ASTNode::BinaryOperation(op, lhs, rhs) =>
+                ASTNode::BinaryOperation(op,
+                                         Box::new(Program::replace(*lhs, sym.clone(), val.clone())),
+                                         Box::new(Program::replace(*rhs, sym.clone(), val.clone()))),
+            ASTNode::TernaryOperation(op, lhs, rhs, ohs) => 
+                ASTNode::TernaryOperation(op,
+                                         Box::new(Program::replace(*lhs, sym.clone(), val.clone())),
+                                         Box::new(Program::replace(*rhs, sym.clone(), val.clone())),
+                                         Box::new(Program::replace(*ohs, sym.clone(), val.clone()))),
+            ASTNode::List(l) => {
+                let mut rl = Vec::new();
+                for item in l {
+                    rl.push(Program::replace(item.clone(), sym.clone(), val.clone()));
+                }
+                ASTNode::List(rl)
+            }, 
+            ASTNode::Block(l) => {
+                let mut rl = Vec::new();
+                for item in l {
+                    rl.push(Program::replace(item.clone(), sym.clone(), val.clone()));
+                }
+                ASTNode::Block(rl)
+            }, 
+            n => n
+        }
+    }
+
+    fn apply_lambda(&mut self, node: ASTNode, argnames: Atom, args: Atom) -> Atom {
         let oldenv = self.env.clone();
-        //self.env = env;
         let namelist = self.list_val(argnames);
         let arglist = self.list_val(args);
+        let mut prog = node.clone();
         for i in 0..namelist.len() {
             let name = namelist[i].clone();
             let val = arglist[i].clone();
-            self.env.insert(name.string().unwrap(), val);
+            prog = Program::replace(prog, name.string().unwrap(), val);
         }
-        let result = self.interpret_node(node.clone());
+        let result = self.interpret_node(prog.clone());
         for i in 0..namelist.len() {
             let name = namelist[i].clone();
             let val = oldenv.get(&name.string().unwrap());
@@ -273,7 +318,6 @@ impl Program {
                 self.env.insert(name.string().unwrap(), val.unwrap().clone());
             }
         }
-        //self.env = oldenv;
         result
     }
 
@@ -318,6 +362,7 @@ impl Program {
     }
 
     pub fn interpret_node(&mut self, node: ASTNode) -> Atom {
+        //println!("node :{:?}", node.clone());
         match node {
             ASTNode::BinaryOperation(_, _, _) => self.op_node(node),
             ASTNode::TernaryOperation(TernaryOp::IfElse, cond, lhs, rhs) => {
@@ -330,7 +375,8 @@ impl Program {
             },
             ASTNode::Value(_, _) => self.value_node(node),
             ASTNode::List(_) => self.list_node(node),
-            ASTNode::Block(_) => self.block_node(node)
+            ASTNode::Block(_) => self.block_node(node),
+            ASTNode::Literal(a) => *a.clone()
         }
     }
 
@@ -346,6 +392,7 @@ impl Program {
         parsy.parse();
         self.ast = parsy.ast();
         let a = self.interpret();
+        //println!("ast: {:?}", a);
         a
     }
 }
@@ -374,6 +421,25 @@ impl Builtin {
             } else {
                 Atom::Nil
             }
+        } else {
+            Atom::Nil
+        }
+    }
+    fn car(atom: Atom) -> Atom {
+        if let Atom::List(l) = atom {
+            l.get(0).unwrap_or(&Atom::Nil).clone()
+        } else {
+            Atom::Nil
+        }
+    }
+        
+    fn cdr(atom: Atom) -> Atom {
+        if let Atom::List(l) = atom {
+            let mut l2 = l.clone();
+            if l2.len() > 0 {
+                l2.remove(0);
+            }
+            Atom::List(l2)
         } else {
             Atom::Nil
         }

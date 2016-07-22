@@ -1,10 +1,8 @@
-y := 1
-inc := \x:
-[
-	y := y + x
-	(y > 5) -> [ y 5 ]
-]/-1
+map := \f l:
+	(l/0 = nil) -> 
+		[]
+		[f:(l/0)] + (map:[f cdr:l])
 
-y := inc:1
-inc:1
-print:inc:1
+inc := \i: i + 1
+print:map:[inc [1 2 3]]
+

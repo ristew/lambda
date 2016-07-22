@@ -1,4 +1,5 @@
 use lexer::*;
+use interpreter::Atom;
 
 /*
  * a recursive descent parser
@@ -23,7 +24,6 @@ pub enum BinaryOp {
     Gt,
     Xor,
     Apply,
-    When,
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +44,7 @@ pub enum ASTNode {
     Block(Vec<ASTNode>),
     BinaryOperation(BinaryOp, Box<ASTNode>, Box<ASTNode>),
     TernaryOperation(TernaryOp, Box<ASTNode>, Box<ASTNode>, Box<ASTNode>),
+    Literal(Box<Atom>)
 }
 
 impl Parser {
@@ -102,6 +103,8 @@ impl Parser {
                 self.nextsym();
             }
             self.expect(Token::Seperator);
+            //println!("tok: {:?}", self.tok.clone());
+            //println!("args: {:?}", args.clone());
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Fun,
                 Box::new(ASTNode::List(args)),
@@ -155,6 +158,14 @@ impl Parser {
             };
             self.nextsym();
             Some(ASTNode::BinaryOperation(op, Box::new(lhs.unwrap()), Box::new(self.term().unwrap())))
+        } else if self.tok == Some(Token::Seperator) {
+            self.nextsym();
+            Some(ASTNode::BinaryOperation(
+                BinaryOp::Apply, Box::new(lhs.unwrap()), Box::new(self.term().unwrap())))
+        } else if self.tok == Some(Token::Equals) {
+            self.nextsym();
+            Some(ASTNode::BinaryOperation(
+                BinaryOp::Eq, Box::new(lhs.unwrap()), Box::new(self.term().unwrap())))
         } else {
             lhs
         }
