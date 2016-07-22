@@ -4,9 +4,11 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub enum Atom {
+    Nil,
     Num(isize),
     Sym(String),
     List(Vec<Atom>),
+    Builtin(String, fn(Atom) -> Atom),
     // lambda takes a closure over its environment
     Lambda(Box<Atom>, ASTNode, Environment)
 }
@@ -25,6 +27,8 @@ pub type Environment = BTreeMap<String, Atom>;
 impl fmt::Display for Atom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match (*self).clone() {
+            Atom::Nil => write!(f, "nil"),
+            Atom::Builtin(name, _) => write!(f, "builtin {}", name),
             Atom::Num(i) => write!(f, "{}", i),
             Atom::Sym(s) => write!(f, "{}", s),
             // thanks for otb support
@@ -39,7 +43,6 @@ impl fmt::Display for Atom {
         }
     }
 }
-    
 
 pub struct Program {
     env: Environment,
@@ -48,10 +51,19 @@ pub struct Program {
 
 impl Program {
     pub fn new() -> Program {
-        Program {
+        let mut p = Program {
             env: BTreeMap::new(),
             ast: Vec::new()
-        }
+        };
+        p.add_builtin("print", Builtin::println);
+        p.add_builtin("fmt", Builtin::fmt);
+        p.add_builtin("debug", Builtin::debug);
+        p.add_builtin("cons", Builtin::cons);
+        p
+    }
+
+    fn add_builtin(&mut self, name: &str, fun: fn(Atom) -> Atom) {
+        self.env.insert(name.to_string(), Atom::Builtin(name.to_string(), fun));
     }
 
     // extract a value out of an ast node
@@ -102,6 +114,14 @@ impl Program {
         }
     }
 
+    fn node_truth(&self, atom: Atom) -> bool {
+        match atom {
+            Atom::Nil => false,
+            Atom::Num(0) => false,
+            _ => true
+        }
+    }
+
     fn add(&mut self, lhs: ASTNode, rhs: ASTNode) -> Atom {
         match (self.interpret_node(lhs.clone()), self.interpret_node(rhs.clone())) {
             (Atom::Num(x), Atom::Num(y)) => Atom::Num(x + y),
@@ -114,21 +134,43 @@ impl Program {
                 vc.append(&mut wc);
                 Atom::List(vc)
             },
-            (x, y) => panic!("bad add: {} + {}", x, y)
+            (x, y) => panic!("bad add: {:?} + {:?}", x, y)
         }
     }
 
+        
+
     fn eq(&mut self, lhs: ASTNode, rhs: ASTNode) -> Atom {
         match (self.interpret_node(lhs), self.interpret_node(rhs)) {
-            (Atom::Num(x), Atom::Num(y)) => Atom::Num((x == y) as isize),
-            (Atom::Sym(x), Atom::Sym(y)) => Atom::Num((x == y) as isize),
-            (_, _) => panic!("bad eq")
+            (Atom::Num(x), Atom::Num(y)) => {
+                if x == y {
+                    Atom::Num(1)
+                } else {
+                    Atom::Nil
+                }
+            },
+            (Atom::Sym(x), Atom::Sym(y)) => {
+                if x == y {
+                    Atom::Num(1)
+                } else {
+                    Atom::Nil
+                }
+            },
+            (_, _) => Atom::Nil
         }
     }
 
     fn div(&mut self, lhs: ASTNode, rhs: ASTNode) -> Atom {
         match self.interpret_node(lhs) {
-            Atom::List(l) => l.get(self.node_num(rhs) as usize).unwrap().clone(),
+            Atom::List(l) => {
+                let idx = self.node_num(rhs);
+                let udx = if idx == -1 {
+                    l.len() - 1 as usize
+                } else {
+                    idx as usize
+                };
+                l.get(udx).unwrap_or(&Atom::Nil).clone()
+            },
             Atom::Num(n) => Atom::Num(n / self.node_num(rhs)),
             Atom::Sym(s) => {
                 let mut retstr = String::new();
@@ -154,14 +196,14 @@ impl Program {
                         if self.node_num(*lhs) < self.node_num(*rhs) {
                             Atom::Num(1)
                         } else {
-                            Atom::Num(0)
+                            Atom::Nil
                         }
                     },
                     BinaryOp::Gt => {
                         if self.node_num(*lhs) > self.node_num(*rhs) {
                             Atom::Num(1)
                         } else {
-                            Atom::Num(0)
+                            Atom::Nil
                         }
                     },
                     BinaryOp::Def => {
@@ -171,11 +213,21 @@ impl Program {
                         //self.interpret_node(*rhs)
                         Atom::Sym(sym)
                     },
+                    BinaryOp::Xor => {
+                        let lhint = self.interpret_node(*lhs);
+                        let rhint = self.interpret_node(*rhs);
+                        if self.node_truth(lhint) ^ self.node_truth(rhint) {
+                            Atom::Num(1)
+                        } else {
+                            Atom::Nil
+                        }
+                    },
                     BinaryOp::When => {
-                        if self.node_num(*lhs) != 0 {
+                        let inter = self.interpret_node(*lhs.clone());
+                        if self.node_truth(inter) {
                             self.interpret_node(*rhs)
                         } else {
-                            Atom::Num(0)
+                            Atom::Nil
                         }
                     },
                     BinaryOp::Fun => Atom::Lambda(Box::new(self.list_node(*lhs)),
@@ -187,6 +239,9 @@ impl Program {
                                 let expanded = self.interpret_node(*rhs);
                                 self.apply_lambda(lam, *args, expanded, env.clone())
                             }
+                            Atom::Builtin(_, fun) => {
+                                fun(self.interpret_node(*rhs))
+                            },
                             n => n
                         }
                     }
@@ -248,3 +303,32 @@ impl Program {
     }
 }
     
+struct Builtin;
+
+impl Builtin {
+    fn println(atom: Atom) -> Atom {
+        println!("{}", atom);
+        Atom::Nil
+    }
+
+    fn fmt(atom: Atom) -> Atom {
+        Atom::Sym(format!("{}", atom))
+    }
+
+    fn debug(atom: Atom) -> Atom {
+        println!("{:?}", atom);
+        Atom::Nil
+    }
+    fn cons(atom: Atom) -> Atom {
+        if let Atom::List(l) = atom {
+            if let Atom::List(mut l2) = l[1].clone() {
+                l2.insert(0, l[0].clone());
+                Atom::List(l2)
+            } else {
+                Atom::Nil
+            }
+        } else {
+            Atom::Nil
+        }
+    }
+}

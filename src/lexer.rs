@@ -14,8 +14,8 @@ pub enum Token {
     Minus,
     Star,
     Slash,
-    Newline,
     Arrow,
+    Tilde,
     Symbol(String),
     Str(String),
 }
@@ -69,10 +69,21 @@ impl Lexer {
                     // -> 
                     Some('>') => Some(Token::Arrow),
                     Some(' ') => Some(Token::Minus),
-                    _ => {
-                        self.position -= 1;
-                        Some(Token::Minus)
-                    }
+                    Some(c) => {
+                        let mut symbol = String::new();
+                        symbol.push('-');
+                        symbol.push(c);
+                        loop {
+                            let nc = self.get_next_char();
+                            if !nc.is_some() || reserved_chars().contains(&nc.unwrap()) {
+                                self.position -= 1; 
+                                break;
+                            }
+                            symbol.push(nc.unwrap());
+                        }
+                        Some(Token::Symbol(symbol))
+                    },
+                    _ => None,
                 }
             },
             Some('"') => {
@@ -85,6 +96,7 @@ impl Lexer {
                 }
                 Some(Token::Str(string))
             },
+            Some('~') => Some(Token::Tilde),
             Some('(') => Some(Token::OpenParen),
             Some(')') => Some(Token::CloseParen),
             Some('[') => Some(Token::OpenList),
@@ -95,7 +107,8 @@ impl Lexer {
             Some('*') => Some(Token::Star),
             Some('/') => Some(Token::Slash),
             Some('=') => Some(Token::Equals),
-            Some('\n') => Some(Token::Newline),
+            Some('\n') => self.get_next_symbol(), 
+            Some('\t') => self.get_next_symbol(), 
             Some(c) => {
                 let mut symbol = String::new();
                 symbol.push(c);

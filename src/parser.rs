@@ -21,6 +21,7 @@ pub enum BinaryOp {
     Eq,
     Lt,
     Gt,
+    Xor,
     Apply,
     When,
 }
@@ -184,6 +185,9 @@ impl Parser {
         } else if self.accept(Token::GreaterThan) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Gt, Box::new(lhs), Box::new(self.expr().unwrap())))
+        } else if self.accept(Token::Tilde) {
+            Some(ASTNode::BinaryOperation(
+                BinaryOp::Xor, Box::new(lhs), Box::new(self.expr().unwrap())))
         } else {
             Some(lhs)
         }
@@ -199,8 +203,8 @@ impl Parser {
     }
 
     pub fn parse(&mut self) {
+        self.nextsym();
         loop {
-            self.nextsym();
             let st = self.statement();
             if st.is_some() {
                 self.ast.push(st.unwrap());
