@@ -2,6 +2,22 @@
 λAMBDA
     a terse, minimal, functional programming language
 
+
+x := a 
+ - assignment
+
+\n:\y:n*y
+ - lambdas
+
+(2 * 3 > 5) ->
+	"math is alright"
+	"something is wrong"
+ - control flow
+
+[1 2 3]/-1
+ - lists
+
+
 fibn := \n:
 	(n > 2) ->
 		(n < 25) -> {
