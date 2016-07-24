@@ -143,7 +143,7 @@ impl Parser {
             self.nextsym();
             Some(ASTNode::Block(list.clone()))
         } else {
-            panic!("not a factor: {:?}", self.tok.clone());
+            panic!("not a factor: {:?}{:?}", self.last, self.tok.clone());
         }
     }
 
@@ -159,9 +159,15 @@ impl Parser {
             self.nextsym();
             Some(ASTNode::BinaryOperation(op, Box::new(lhs.unwrap()), Box::new(self.term().unwrap())))
         } else if self.tok == Some(Token::Seperator) {
-            self.nextsym();
-            Some(ASTNode::BinaryOperation(
-                BinaryOp::Apply, Box::new(lhs.unwrap()), Box::new(self.term().unwrap())))
+            let mut astbase = lhs;
+            while self.tok == Some(Token::Seperator) {
+                self.nextsym();
+                let baseas = astbase.clone();
+                astbase = Some(ASTNode::BinaryOperation(
+                    BinaryOp::Apply, Box::new(baseas.unwrap()), Box::new(self.expr().unwrap())));
+            }
+            //println!("astbase {:?}", astbase);
+            return astbase;
         } else if self.tok == Some(Token::Equals) {
             self.nextsym();
             Some(ASTNode::BinaryOperation(
@@ -195,9 +201,6 @@ impl Parser {
         if self.accept(Token::Assign) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Def, Box::new(lhs), Box::new(self.expr().unwrap())))
-        } else if self.accept(Token::Seperator) {
-            Some(ASTNode::BinaryOperation(
-                BinaryOp::Apply, Box::new(lhs), Box::new(self.expr().unwrap())))
         } else if self.accept(Token::Equals) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Eq, Box::new(lhs), Box::new(self.expr().unwrap())))

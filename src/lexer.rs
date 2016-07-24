@@ -24,7 +24,7 @@ pub enum Token {
 
 // we use these
 fn reserved_chars() -> Vec<char> {
-    vec!('{', '}', '[', ']', '<', '>', '\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
+    vec!('λ', '~', '{', '}', '[', ']', '<', '>', '\\', '/', ':', '(', ')', '*', '+', '=', '-', ' ', '\n')
 }
     
 
@@ -56,6 +56,7 @@ impl Lexer {
             // diregard multiple spaces
             Some(' ') => self.get_next_symbol(),
             Some('\\') => Some(Token::Lambda),
+            Some('λ') => Some(Token::Lambda),
             Some(':') => {
                 match self.get_next_char() {
                     // :=

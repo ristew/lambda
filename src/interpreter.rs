@@ -1,6 +1,7 @@
 use parser::*;
 use std::collections::BTreeMap;
 use std::fmt;
+use std::io::{self, Read};
 
 #[derive(Debug, Clone)]
 pub enum Atom {
@@ -17,20 +18,6 @@ impl Atom {
     fn string(&self) -> Option<String> {
         match self.clone() {
             Atom::Sym(s) => Some(s),
-            _ => None
-        }
-    }
-    fn node_val(&self) -> Option<ASTNode> {
-        match self.clone() {
-            Atom::Sym(s) => Some(ASTNode::Value(s, ValueType::Symbol)),
-            Atom::Num(n) => Some(ASTNode::Value(format!("{}", n), ValueType::Symbol)),
-            Atom::List(l) => {
-                let mut lnew = Vec::new();
-                for i in l {
-                    lnew.push(i.node_val().unwrap());
-                }
-                Some(ASTNode::List(lnew))
-            },
             _ => None
         }
     }
@@ -69,12 +56,9 @@ impl Program {
             env: BTreeMap::new(),
             ast: Vec::new()
         };
-        p.add_builtin("print", Builtin::println);
-        p.add_builtin("fmt", Builtin::fmt);
-        p.add_builtin("debug", Builtin::debug);
-        p.add_builtin("cons", Builtin::cons);
-        p.add_builtin("cdr", Builtin::cdr);
-        p.add_builtin("car", Builtin::car);
+        for (name, fun) in Builtin::get_builtins() {
+            p.add_builtin(&name, fun);
+        }
         p
     }
 
@@ -391,8 +375,8 @@ impl Program {
         let mut parsy = Parser::new(line);
         parsy.parse();
         self.ast = parsy.ast();
+        //println!("ast: {:?}", self.ast);
         let a = self.interpret();
-        //println!("ast: {:?}", a);
         a
     }
 }
@@ -400,6 +384,16 @@ impl Program {
 struct Builtin;
 
 impl Builtin {
+    pub fn get_builtins() -> Vec<(String, fn(Atom) -> Atom)> {
+        vec!((String::from("print"), Builtin::println),
+             (String::from("fmt"), Builtin::fmt),
+             (String::from("debug"), Builtin::debug),
+             (String::from("cons"), Builtin::cons),
+             (String::from("car"), Builtin::car),
+             (String::from("cdr"), Builtin::cdr),
+             (String::from("readline"), Builtin::readline),
+        )
+    }
     fn println(atom: Atom) -> Atom {
         println!("{}", atom);
         Atom::Nil
@@ -444,4 +438,12 @@ impl Builtin {
             Atom::Nil
         }
     }
+
+    fn readline(_: Atom) -> Atom {
+        let mut buf = String::new();
+        match io::stdin().read_line(&mut buf) {
+            Ok(_) => Atom::Sym(buf),
+            Err(_) => Atom::Nil
+        }
+    } 
 }

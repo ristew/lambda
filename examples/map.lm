@@ -1,17 +1,16 @@
-map := \f l:
-	{(car:l) = nil} -> 
+filter := \f l: 
+	((car:l) = nil) -> 
 		[]
-		[f:(car:l)] + map:[f cdr:l]
-
-filter := \f l:
-	{(car:l) = nil} -> 
-		[]
-		f:car:l ->
+		(f:car:l) ->
 			[car:l] + filter:[f cdr:l]
 			filter:[f cdr:l]
 
+map := \f l: 
+	((car:l) = nil) -> 
+		[]
+		[f:car:l] + (map:[f cdr:l])
+
 inc := \i: i + 1
-I := \x:x
 gtfive := \x: x > 5
 print:map:[inc [1 2 3]]
 print:filter:[gtfive [3 5 7 9]]

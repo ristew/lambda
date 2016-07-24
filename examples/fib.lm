@@ -16,5 +16,5 @@ fastfibn := \n:{
 	addfib:_
 }		
 
-print:fibn:10
-print:fastfibn:40
+print:(fibn:10)
+print:(fastfibn:40)
