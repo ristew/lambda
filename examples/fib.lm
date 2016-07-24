@@ -5,9 +5,9 @@ fibn := \n:
 			"too big"
 		1
 
-fastfibn := \n:{
+fastfibn := λn:{
 	fibs := [1 1]
-	addfib := \_: {
+	addfib := λ_: {
 		fibs := fibs + [fibs/-1 + fibs/-2]
 		((fibs/n) = nil) ->
 			addfib:_
@@ -16,5 +16,5 @@ fastfibn := \n:{
 	addfib:_
 }		
 
-print:(fibn:10)
-print:(fastfibn:40)
+print:fibn:10
+print:fastfibn:40
