@@ -108,7 +108,7 @@ impl Parser {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Fun,
                 Box::new(ASTNode::List(args)),
-                Box::new(self.expr().unwrap())))
+                Box::new(self.statement().unwrap())))
         }
         else if self.accept(Token::Symbol("any".to_string())) {
             let t = self.last.clone();
@@ -138,7 +138,7 @@ impl Parser {
         } else if self.accept(Token::OpenBlock) {
             let mut list = Vec::new();
             while self.tok.clone() != Some(Token::CloseBlock) {
-                list.push(self.expr().unwrap());
+                list.push(self.statement().unwrap());
             }
             self.nextsym();
             Some(ASTNode::Block(list.clone()))
@@ -183,6 +183,7 @@ impl Parser {
             self.nextsym();
         }
         let lhs = self.term().unwrap();
+        //println!("tok, lhs: {:?}, {:?}", self.tok, lhs);
         // recursive descent parsers have problems with right associativity
         if self.tok == Some(Token::Plus) || self.tok == Some(Token::Minus) {
             let mut astbase: Option<ASTNode> = Some(lhs);
@@ -204,9 +205,6 @@ impl Parser {
         } else if self.accept(Token::Equals) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Eq, Box::new(lhs), Box::new(self.expr().unwrap())))
-        } else if self.accept(Token::Arrow) {
-            Some(ASTNode::TernaryOperation(
-                TernaryOp::IfElse, Box::new(lhs), Box::new(self.expr().unwrap()), Box::new(self.expr().unwrap())))
         } else if self.accept(Token::LessThan) {
             Some(ASTNode::BinaryOperation(
                 BinaryOp::Lt, Box::new(lhs), Box::new(self.expr().unwrap())))
@@ -226,7 +224,15 @@ impl Parser {
         if self.tok == None {
             None
         } else {
-            self.expr()
+            let lhs = self.expr();
+            if self.accept(Token::Arrow) {
+                Some(ASTNode::TernaryOperation(
+                    TernaryOp::IfElse, Box::new(lhs.unwrap()),
+                    Box::new(self.statement().unwrap()),
+                    Box::new(self.statement().unwrap())))
+            } else {
+                lhs
+            }
         }
     }
 

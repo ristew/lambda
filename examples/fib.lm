@@ -1,6 +1,6 @@
 fibn := \n:
-	(n > 2) ->
-		(n < 25) ->
+	n > 2 ->
+		n < 25 ->
 			(fibn:(n - 1)) + (fibn:(n - 2))
 			"too big"
 		1
@@ -9,7 +9,7 @@ fastfibn := λn:{
 	fibs := [1 1]
 	addfib := λ_: {
 		fibs := fibs + [fibs/-1 + fibs/-2]
-		((fibs/n) = nil) ->
+		(fibs/n) = nil ->
 			addfib:_
 			fibs/n
 	}

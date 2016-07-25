@@ -21,6 +21,12 @@ impl Atom {
             _ => None
         }
     }
+    fn truth(&self) -> bool {
+        match self.clone() {
+            Atom::Nil => false,
+            _ => true
+        }
+    }
 }
 
 pub type Environment = BTreeMap<String, Atom>;
@@ -249,6 +255,7 @@ impl Program {
     fn replace(node: ASTNode, sym: String, val: Atom) -> ASTNode {
         match node.clone() {
             ASTNode::Value(s, ValueType::Symbol) => {
+                //println!("{} == {}", s, sym);
                 if s == sym {
                     //println!("replacing {} with {:?}", s, val.clone());
                     ASTNode::Literal(Box::new(val))
@@ -392,6 +399,7 @@ impl Builtin {
              (String::from("car"), Builtin::car),
              (String::from("cdr"), Builtin::cdr),
              (String::from("readline"), Builtin::readline),
+             (String::from("assert"), Builtin::assert),
         )
     }
     fn println(atom: Atom) -> Atom {
@@ -446,4 +454,10 @@ impl Builtin {
             Err(_) => Atom::Nil
         }
     } 
+    fn assert(atom: Atom) -> Atom {
+        if !atom.truth() {
+            panic!("assert failed");
+        }
+        atom
+    }
 }
